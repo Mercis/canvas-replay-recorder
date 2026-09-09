@@ -3,16 +3,15 @@
   const STORE_NAME = 'replays';
   const LAST_REPLAY_ID = 'last';
   const FALLBACK_KEY = 'castle:last-battle-replay';
-  const FRAME_INTERVAL = 0.12;
+  const RECORDER_OPTIONS = {
+    fps: 8,
+    mimeType: 'image/webp',
+    quality: 0.62,
+    includeInitialFrame: true
+  };
 
   let replayButton = null;
-  let recording = false;
-  let frames = [];
-  let lastFrameTime = -Infinity;
-
-  function cloneState(state) {
-    return JSON.parse(JSON.stringify(state));
-  }
+  let recorder = null;
 
   function openDb() {
     return new Promise((resolve, reject) => {
@@ -71,42 +70,61 @@
     replayButton.textContent = label || (enabled ? '查看回放' : '暂无回放');
   }
 
-  function pushFrame(state, force = false) {
-    if (!recording || !state) return;
-    if (!force && state.time - lastFrameTime < FRAME_INTERVAL) return;
-    frames.push(cloneState(state));
-    lastFrameTime = state.time;
+  function getCanvas() {
+    return document.getElementById('game');
   }
 
-  function startRecording(event) {
-    recording = true;
-    frames = [];
-    lastFrameTime = -Infinity;
+  function getFrameRecorderClass() {
+    return window.CanvasFrameReplay && window.CanvasFrameReplay.CanvasFrameRecorder;
+  }
+
+  function startRecording() {
     setReplayButton(false, '录制中');
-    pushFrame(event.detail.state, true);
+    if (recorder && recorder.isRunning) recorder.stop();
+    recorder = null;
+
+    const canvas = getCanvas();
+    const RecorderClass = getFrameRecorderClass();
+    if (!canvas || !RecorderClass) {
+      console.warn('[BattleReplay] canvas frame recorder is not ready');
+      setReplayButton(false, '暂无回放');
+      return;
+    }
+
+    recorder = new RecorderClass(canvas, RECORDER_OPTIONS);
+    try {
+      recorder.start();
+    } catch (error) {
+      console.warn('[BattleReplay] start canvas recording failed', error);
+      recorder = null;
+      setReplayButton(false, '暂无回放');
+    }
   }
 
   function finishRecording(event) {
     requestAnimationFrame(async () => {
-      recording = false;
-      pushFrame(event.detail.state, true);
-      if (!frames.length) {
-        setReplayButton(false, '暂无回放');
-        return;
-      }
+      if (!recorder) return;
       try {
+        await recorder.captureFrame();
+        const recording = recorder.stop();
+        if (!recording.frames.length) {
+          setReplayButton(false, '暂无回放');
+          return;
+        }
         await saveReplay({
-          frames,
+          recording,
           meta: {
             winner: event.detail.state.winner,
-            duration: event.detail.state.time,
+            gameTime: event.detail.state.time,
             savedAt: Date.now()
           }
         });
         setReplayButton(true, '查看回放');
       } catch (error) {
-        console.warn('[BattleReplay] save replay failed', error);
+        console.warn('[BattleReplay] save canvas replay failed', error);
         setReplayButton(false, '回放保存失败');
+      } finally {
+        recorder = null;
       }
     });
   }
@@ -118,7 +136,6 @@
       setReplayButton(false, '暂无回放');
     }
     addEventListener('gamestart', startRecording);
-    addEventListener('gamechange', event => pushFrame(event.detail.state));
     addEventListener('gamefinish', finishRecording);
   }
 

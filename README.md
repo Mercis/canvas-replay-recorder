@@ -49,8 +49,8 @@ Demos:
 
 Integration example:
 
-- `battle-replay.js`: example of game-state snapshot replay for the Castle demo project.
-- `replay.html`: example replay page for the Castle demo project. This file expects the parent Castle project files such as `js/config.js` and `js/render.js`.
+- `battle-replay.js`: example integration that records the Castle demo game's canvas with `CanvasFrameRecorder`.
+- `replay.html`: example replay page that restores the recorded battle canvas with `CanvasFramePlayer`.
 
 ## Option 1: Canvas Frame Recorder
 
@@ -225,6 +225,7 @@ Use the frame recorder when:
 - You are building a canvas game or an H5 activity.
 - The page viewport is much larger than the canvas.
 - You do not need to replay DOM inputs, clicks, or scrolls.
+- You want playback to restore canvas pixels without the original game engine.
 
 Use the rrweb recorder when:
 

@@ -3,14 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <base href="../">
-  <title>战斗回放</title>
-  <link rel="stylesheet" href="css/style.css?v=5.11.1">
-  <link rel="stylesheet" href="css/deploy.css?v=5.11.1">
-  <link rel="stylesheet" href="css/mobile-v5.css?v=5.11.1">
+  <title>战斗 Canvas 回放</title>
   <style>
-    html,body{min-height:100%;background:#090d0a;color:#f3e4bd}
-    body{display:flex;justify-content:center;padding:0}
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:#090d0a;color:#f3e4bd;font-family:"Microsoft YaHei","Noto Sans SC",sans-serif}
+    body{display:flex;justify-content:center}
     .replay-shell{width:min(100vw,520px);min-height:100vh;background:#111710}
     .replay-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-bottom:1px solid #7b6a41;background:#10160f}
     .replay-head h1{margin:0;overflow:hidden;font:700 16px KaiTi,"Microsoft YaHei";color:#f3d891;white-space:nowrap;text-overflow:ellipsis}
@@ -26,7 +23,7 @@
 <body>
   <div class="replay-shell">
     <header class="replay-head">
-      <h1 id="title">战斗回放</h1>
+      <h1 id="title">战斗 Canvas 回放</h1>
       <button id="back" type="button">返回战场</button>
     </header>
     <main id="stage" class="replay-stage">
@@ -39,9 +36,8 @@
       <button id="play" type="button">暂停</button>
     </div>
   </div>
-  <script src="js/config.js?v=5.11.1"></script>
-  <script src="js/render.js?v=5.11.1"></script>
-  <script src="rw/battle-replay.js?v=5.11.1"></script>
+  <script src="canvas-frame-recorder.js?v=5.11.1"></script>
+  <script src="battle-replay.js?v=5.11.1"></script>
   <script>
     (async () => {
       const replay = await window.BattleReplay.loadReplay();
@@ -57,72 +53,50 @@
 
       back.onclick = () => {
         if (history.length > 1) history.back();
-        else location.href = 'index.html';
+        else location.href = '../index.html';
       };
 
-      if (!replay || !replay.frames || !replay.frames.length) {
+      if (!replay || !replay.recording || !replay.recording.frames || !replay.recording.frames.length) {
         stage.className = 'empty';
-        stage.textContent = '暂无可播放的战斗回放';
+        stage.textContent = '暂无可播放的 Canvas 回放';
         canvas.remove();
         controls.style.display = 'none';
         return;
       }
 
-      if (replay.meta && replay.meta.winner) title.textContent = `战斗回放 · ${replay.meta.winner}`;
+      if (replay.meta && replay.meta.winner) title.textContent = `战斗 Canvas 回放 · ${replay.meta.winner}`;
 
-      const renderer = new GameRender(canvas);
-      const frames = replay.frames;
-      const total = frames[frames.length - 1].time || 0;
-      let playing = true;
-      let replayTime = 0;
-      let last = performance.now();
+      const player = new CanvasFrameReplay.CanvasFramePlayer(canvas, replay.recording, { autoPlay: true });
 
-      function formatTime(value) {
-        const seconds = Math.max(0, Math.ceil(value));
+      function formatTime(ms) {
+        const seconds = Math.max(0, Math.ceil(ms / 1000));
         return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
       }
 
-      function findFrame(time) {
-        let left = 0, right = frames.length - 1;
-        while (left < right) {
-          const mid = Math.ceil((left + right) / 2);
-          if (frames[mid].time <= time) left = mid;
-          else right = mid - 1;
-        }
-        return frames[left];
+      function syncControls() {
+        progress.value = String(player.currentTime);
+        timeNow.textContent = formatTime(player.currentTime);
+        play.textContent = player.isPlaying ? '暂停' : player.currentTime >= player.duration ? '重播' : '播放';
+        requestAnimationFrame(syncControls);
       }
 
-      function draw(now) {
-        const dt = Math.min(0.1, (now - last) / 1000);
-        last = now;
-        if (playing) replayTime = Math.min(total, replayTime + dt);
-        if (replayTime >= total) {
-          replayTime = total;
-          playing = false;
-          play.textContent = '重播';
-        }
-        renderer.draw(findFrame(replayTime));
-        progress.value = String(replayTime);
-        timeNow.textContent = formatTime(replayTime);
-        requestAnimationFrame(draw);
-      }
-
-      progress.max = String(total);
-      progress.step = '0.1';
-      timeTotal.textContent = formatTime(total);
+      progress.max = String(player.duration);
+      progress.step = '100';
+      timeTotal.textContent = formatTime(player.duration);
       progress.oninput = () => {
-        replayTime = Number(progress.value);
-        playing = false;
-        play.textContent = '播放';
+        player.pause();
+        player.seek(Number(progress.value));
       };
       play.onclick = () => {
-        if (replayTime >= total) replayTime = 0;
-        playing = !playing;
-        play.textContent = playing ? '暂停' : '播放';
+        if (player.isPlaying) {
+          player.pause();
+          return;
+        }
+        if (player.currentTime >= player.duration) player.seek(0);
+        player.play();
       };
 
-      renderer.draw(frames[0]);
-      requestAnimationFrame(draw);
+      syncControls();
     })();
   </script>
 </body>
