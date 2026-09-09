@@ -1,0 +1,38 @@
+{
+  "name": "canvas-replay-recorder",
+  "version": "0.1.0",
+  "description": "Browser-only canvas recorder and replay toolkit for H5 games, interactive canvas apps, rrweb canvas sessions, and frame snapshot playback.",
+  "main": "canvas-frame-recorder.js",
+  "files": [
+    "canvas-frame-recorder.js",
+    "canvas-rrweb-recorder.js",
+    "rrweb-capture.js",
+    "dev-server.js",
+    "record.umd.min.cjs",
+    "*.html",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "dev": "node dev-server.js",
+    "check": "node --check canvas-frame-recorder.js && node --check canvas-rrweb-recorder.js && node --check rrweb-capture.js && node --check battle-replay.js"
+  },
+  "keywords": [
+    "canvas",
+    "canvas-recorder",
+    "canvas-replay",
+    "replay",
+    "recording",
+    "recorder",
+    "rrweb",
+    "rrweb-canvas",
+    "h5-game",
+    "html5-canvas",
+    "session-replay",
+    "game-replay",
+    "canvas-snapshot"
+  ],
+  "author": "",
+  "license": "MIT"
+}

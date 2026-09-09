@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Canvas rrweb Recorder Demo</title>
+  <link rel="stylesheet" href="https://cdn.rrweb.com/rrweb-player/current/style.css">
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:#111827;color:#e5e7eb;font-family:Arial,sans-serif}
+    main{width:min(980px,94vw);margin:0 auto;padding:24px 0}
+    canvas{width:420px;max-width:100%;background:#020617;border:1px solid #475569;border-radius:8px}
+    #player{min-height:360px;margin-top:16px;border:1px solid #475569;border-radius:8px;overflow:hidden;background:#020617}
+    .bar{display:flex;gap:8px;margin:12px 0;align-items:center;flex-wrap:wrap}
+    button{height:34px;padding:0 14px;border:1px solid #64748b;border-radius:6px;background:#1f2937;color:#f8fafc;cursor:pointer}
+    small{color:#94a3b8}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Canvas rrweb Recorder</h1>
+    <div class="bar">
+      <button id="start">Start</button>
+      <button id="stop">Stop and Play</button>
+      <small id="status">idle</small>
+    </div>
+    <canvas id="live" width="420" height="320"></canvas>
+    <div id="player"></div>
+  </main>
+  <script src="record.umd.min.cjs"></script>
+  <script src="canvas-rrweb-recorder.js"></script>
+  <script type="module">
+    import rrwebPlayer from 'https://cdn.rrweb.com/rrweb-player/current/rrweb-player.js';
+
+    const live = document.getElementById('live');
+    const ctx = live.getContext('2d');
+    const status = document.getElementById('status');
+    const playerBox = document.getElementById('player');
+    let recorder = new CanvasRrwebReplay.CanvasRrwebRecorder({ fps: 8 });
+    let player = null;
+    let startTime = performance.now();
+
+    function draw(now) {
+      const t = (now - startTime) / 1000;
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(0, 0, live.width, live.height);
+      ctx.fillStyle = '#a78bfa';
+      ctx.beginPath();
+      ctx.arc(210 + Math.cos(t * 2) * 120, 160 + Math.sin(t * 3) * 90, 28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(40 + (t * 80) % 320, 245, 54, 38);
+      ctx.fillStyle = '#e5e7eb';
+      ctx.font = '700 22px Arial';
+      ctx.fillText('t=' + t.toFixed(1), 18, 34);
+      requestAnimationFrame(draw);
+    }
+
+    document.getElementById('start').onclick = () => {
+      recorder.start();
+      status.textContent = 'recording';
+    };
+
+    document.getElementById('stop').onclick = () => {
+      const recording = recorder.stop();
+      playerBox.innerHTML = '';
+      player = new rrwebPlayer({
+        target: playerBox,
+        props: {
+          events: recording.events,
+          autoPlay: true,
+          width: Math.min(900, window.innerWidth - 60),
+          height: 520
+        }
+      });
+      status.textContent = `${recording.events.length} rrweb events, ${(recording.duration / 1000).toFixed(1)}s`;
+    };
+
+    requestAnimationFrame(draw);
+  </script>
+</body>
+</html>
