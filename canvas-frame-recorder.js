@@ -12,7 +12,8 @@
     mimeType: 'image/webp',
     quality: 0.72,
     maxFrames: 0,
-    includeInitialFrame: true
+    includeInitialFrame: true,
+    skipDuplicateFrames: false
   };
 
   class CanvasFrameRecorder {
@@ -22,10 +23,14 @@
       this.options = Object.assign({}, DEFAULT_RECORDER_OPTIONS, options);
       this.frames = [];
       this.isRunning = false;
+      this.isPaused = false;
       this.startedAt = 0;
       this.stoppedAt = 0;
+      this.pausedDuration = 0;
       this._timer = null;
       this._captureBusy = false;
+      this._pauseStartedAt = 0;
+      this._skippedDuplicateFrames = 0;
     }
 
     start() {
@@ -33,35 +38,69 @@
       this.clear();
       this.startedAt = performance.now();
       this.stoppedAt = 0;
+      this.pausedDuration = 0;
+      this._pauseStartedAt = 0;
+      this._skippedDuplicateFrames = 0;
       this.isRunning = true;
+      this.isPaused = false;
       if (this.options.includeInitialFrame) this.captureFrame();
       this._scheduleNext();
     }
 
     stop() {
       if (!this.isRunning) return this.getRecording();
+      if (this.isPaused && this._pauseStartedAt) {
+        this.pausedDuration += performance.now() - this._pauseStartedAt;
+        this._pauseStartedAt = 0;
+      }
       this.isRunning = false;
+      this.isPaused = false;
       this.stoppedAt = performance.now();
       if (this._timer) clearTimeout(this._timer);
       this._timer = null;
       return this.getRecording();
     }
 
+    pause() {
+      if (!this.isRunning || this.isPaused) return;
+      this.isPaused = true;
+      this._pauseStartedAt = performance.now();
+      if (this._timer) clearTimeout(this._timer);
+      this._timer = null;
+    }
+
+    resume() {
+      if (!this.isRunning || !this.isPaused) return;
+      this.pausedDuration += performance.now() - this._pauseStartedAt;
+      this._pauseStartedAt = 0;
+      this.isPaused = false;
+      this._scheduleNext();
+    }
+
     clear() {
       this.frames.length = 0;
       this.startedAt = 0;
       this.stoppedAt = 0;
+      this.pausedDuration = 0;
+      this._pauseStartedAt = 0;
+      this._skippedDuplicateFrames = 0;
     }
 
     async captureFrame() {
-      if (this._captureBusy || !this.startedAt) return null;
+      if (this._captureBusy || !this.startedAt || this.isPaused) return null;
       this._captureBusy = true;
       try {
+        const dataURL = this.canvas.toDataURL(this.options.mimeType, this.options.quality);
+        const lastFrame = this.frames[this.frames.length - 1];
+        if (this.options.skipDuplicateFrames && lastFrame && lastFrame.dataURL === dataURL) {
+          this._skippedDuplicateFrames += 1;
+          return null;
+        }
         const frame = {
-          t: Math.max(0, performance.now() - this.startedAt),
+          t: this._getElapsedTime(),
           width: this.canvas.width,
           height: this.canvas.height,
-          dataURL: this.canvas.toDataURL(this.options.mimeType, this.options.quality)
+          dataURL
         };
         this.frames.push(frame);
         if (this.options.maxFrames > 0) {
@@ -83,13 +122,14 @@
         mimeType: this.options.mimeType,
         startedAt: this.startedAt,
         stoppedAt: this.stoppedAt || performance.now(),
-        duration: Math.max(0, (this.stoppedAt || performance.now()) - this.startedAt),
+        duration: this._getElapsedTime(this.stoppedAt || performance.now()),
+        skippedDuplicateFrames: this._skippedDuplicateFrames,
         frames: this.frames.slice()
       };
     }
 
     _scheduleNext() {
-      if (!this.isRunning) return;
+      if (!this.isRunning || this.isPaused) return;
       const delay = Math.max(16, 1000 / this.options.fps);
       this._timer = setTimeout(async () => {
         try {
@@ -101,6 +141,12 @@
         }
         this._scheduleNext();
       }, delay);
+    }
+
+    _getElapsedTime(now = performance.now()) {
+      if (!this.startedAt) return 0;
+      const currentPause = this.isPaused && this._pauseStartedAt ? now - this._pauseStartedAt : 0;
+      return Math.max(0, now - this.startedAt - this.pausedDuration - currentPause);
     }
   }
 

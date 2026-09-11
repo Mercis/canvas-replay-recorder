@@ -11,6 +11,7 @@
     "record.umd.min.cjs",
     "*.html",
     "README.md",
+    "ROADMAP.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md"
   ],

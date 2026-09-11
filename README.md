@@ -32,6 +32,8 @@ Open:
 
 No build step is required. The core files are plain UMD browser scripts.
 
+See `ROADMAP.md` for the planned direction of the recorder, player, storage helpers, and SDK packaging.
+
 ## Files
 
 Core:
@@ -70,7 +72,8 @@ const recorder = new CanvasFrameReplay.CanvasFrameRecorder(liveCanvas, {
   fps: 12,
   mimeType: 'image/webp',
   quality: 0.75,
-  maxFrames: 0
+  maxFrames: 0,
+  skipDuplicateFrames: true
 });
 
 recorder.start();
@@ -97,11 +100,14 @@ Options:
 - `quality`: encoder quality passed to `toDataURL()`. Default: `0.72`.
 - `maxFrames`: ring-buffer limit. `0` means unlimited. Default: `0`.
 - `includeInitialFrame`: capture one frame immediately on `start()`. Default: `true`.
+- `skipDuplicateFrames`: skip frames whose encoded image data is exactly the same as the previous captured frame. Default: `false`.
 
 Methods:
 
 - `start()`: begin capturing frames.
 - `stop()`: stop capturing and return a recording object.
+- `pause()`: pause scheduled frame capture without ending the recording.
+- `resume()`: resume scheduled frame capture and keep paused time out of the replay timeline.
 - `captureFrame()`: manually capture one frame.
 - `getRecording()`: return the current recording object.
 - `clear()`: clear captured frames.
@@ -117,6 +123,7 @@ Recording shape:
   fps: 12,
   mimeType: 'image/webp',
   duration: 2800,
+  skippedDuplicateFrames: 0,
   frames: [
     { t: 0, width: 420, height: 320, dataURL: 'data:image/webp;base64,...' }
   ]

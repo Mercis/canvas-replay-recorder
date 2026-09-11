@@ -21,6 +21,8 @@
     <h1>Canvas Frame Recorder</h1>
     <div class="bar">
       <button id="start">Start</button>
+      <button id="pause">Pause</button>
+      <button id="resume">Resume</button>
       <button id="stop">Stop and Play</button>
       <small id="status">idle</small>
     </div>
@@ -34,7 +36,12 @@
     const live = document.getElementById('live');
     const ctx = live.getContext('2d');
     const status = document.getElementById('status');
-    let recorder = new CanvasFrameReplay.CanvasFrameRecorder(live, { fps: 12, mimeType: 'image/webp', quality: 0.75 });
+    let recorder = new CanvasFrameReplay.CanvasFrameRecorder(live, {
+      fps: 12,
+      mimeType: 'image/webp',
+      quality: 0.75,
+      skipDuplicateFrames: true
+    });
     let player = null;
     let start = performance.now();
 
@@ -59,11 +66,21 @@
       status.textContent = 'recording';
     };
 
+    document.getElementById('pause').onclick = () => {
+      recorder.pause();
+      status.textContent = 'paused';
+    };
+
+    document.getElementById('resume').onclick = () => {
+      recorder.resume();
+      status.textContent = 'recording';
+    };
+
     document.getElementById('stop').onclick = () => {
       const recording = recorder.stop();
       if (player) player.destroy();
       player = new CanvasFrameReplay.CanvasFramePlayer(document.getElementById('replay'), recording, { autoPlay: true, loop: true });
-      status.textContent = `${recording.frames.length} frames, ${(recording.duration / 1000).toFixed(1)}s`;
+      status.textContent = `${recording.frames.length} frames, ${recording.skippedDuplicateFrames} skipped, ${(recording.duration / 1000).toFixed(1)}s`;
     };
 
     requestAnimationFrame(draw);
